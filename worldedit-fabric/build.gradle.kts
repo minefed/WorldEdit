@@ -21,6 +21,18 @@ configure<LoomGradleExtensionAPI> {
 }
 
 repositories {
+    // Preserve the optional permissions API without relying on a removed snapshot.
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "SquidDevPermissionsMirror"
+                url = uri("https://squiddev.cc/maven/")
+            }
+        }
+        filter {
+            includeModule("me.lucko", "fabric-permissions-api")
+        }
+    }
     maven {
         name = "Fabric"
         url = uri("https://maven.fabricmc.net/")
@@ -59,7 +71,7 @@ dependencies {
     }
 
     // No need for this at runtime
-    "modCompileOnly"("me.lucko:fabric-permissions-api:0.1-SNAPSHOT")
+    "modCompileOnly"("me.lucko:fabric-permissions-api:0.3.20230723")
 
     // Hook these up manually, because Fabric doesn't seem to quite do it properly.
     "compileOnly"("net.fabricmc:sponge-mixin:${project.versions.mixin}")
