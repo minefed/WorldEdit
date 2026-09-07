@@ -1,5 +1,7 @@
 import org.cadixdev.gradle.licenser.LicenseExtension
 import org.gradle.plugins.ide.idea.model.IdeaModel
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaToolchainService
 
 plugins {
     `java-library`
@@ -93,6 +95,32 @@ tasks.named<AntlrTask>("generateGrammarSource").configure {
         "-visitor", "-package", pkg,
         "-Xexact-output-dir"
     )
+
+    if (providers.gradleProperty("minefedAntlrJava21").orNull == "true") {
+        // Gradle 8.5's ANTLR worker cannot select a launcher. Run the same tool
+        // directly to avoid its worker bootstrap on non-ASCII Windows paths.
+        val launcher = project.extensions.getByType<JavaToolchainService>().launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        }
+        inputs.property("minefedAntlrJava21", true)
+        actions.clear()
+        doLast {
+            val grammarRoot = project.file("src/main/antlr")
+            val toolArguments = arguments + listOf("-o", outputDirectory.absolutePath) +
+                source.files.sorted().map { it.relativeTo(grammarRoot).path }
+            val toolClasspath = antlrClasspath
+            val toolHeapSize = maxHeapSize ?: "64m"
+            project.delete(outputDirectory)
+            project.javaexec {
+                executable = launcher.get().executablePath.asFile.absolutePath
+                workingDir = grammarRoot
+                classpath = toolClasspath
+                mainClass.set("org.antlr.v4.Tool")
+                maxHeapSize = toolHeapSize
+                args(toolArguments)
+            }.assertNormalExitValue()
+        }
+    }
 }
 
 tasks.named("sourcesJar") {
